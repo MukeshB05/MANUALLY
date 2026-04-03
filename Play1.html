@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dreamly TV - Pro Final</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.6.0/shaka-player.ui.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.6.0/controls.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Sharp">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Roboto:wght@400;500&display=swap');
+        
+        body { font-family: 'Orbitron', sans-serif; background: #000; color: #fff; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 95%; max-width: 1000px; margin: auto; text-align: center; }
+        h2 { color: #ff0055; text-transform: uppercase; letter-spacing: 2px; margin: 20px 0; }
+
+        .shaka-video-container { 
+            width: 100%; aspect-ratio: 16/9; background: #000; border: 2px solid #333; 
+            border-radius: 12px; overflow: hidden; position: relative;
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.3);
+        }
+        video { width: 100%; height: 100%; object-fit: contain; }
+
+        #status { margin: 10px 0; color: #00f2fe; font-size: 0.8em; font-weight: bold; }
+
+        .controls { width: 100%; margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+        #searchBar { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ff0055; background: #111; color: #fff; font-family: 'Orbitron'; outline: none; box-sizing: border-box; }
+        
+        .category-wrapper { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; justify-content: center; scrollbar-width: none; }
+        .cat-btn { padding: 8px 18px; border-radius: 20px; border: 1px solid #444; background: #111; color: #aaa; cursor: pointer; font-size: 0.7em; transition: 0.3s; }
+        .cat-btn.active { background: #ff0055; color: #fff; border-color: #ff0055; }
+
+        .channel-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 15px; margin-top: 20px; width: 100%; }
+        .channel-card { background: #111; padding: 12px; border-radius: 12px; cursor: pointer; border: 1px solid #222; transition: 0.3s; display: flex; flex-direction: column; align-items: center; }
+        .channel-card:hover { border-color: #00f2fe; transform: translateY(-5px); }
+        .channel-card.active { border-color: #ff0055; background: rgba(255, 0, 85, 0.15); }
+        .channel-card img { width: 50px; height: 50px; object-fit: contain; margin-bottom: 8px; }
+        .channel-card span { font-size: 10px; font-weight: bold; text-align: center; }
+
+        .manual-play-button {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85); color: white; padding: 20px 30px;
+            border-radius: 10px; cursor: pointer; z-index: 2000; display: none;
+            border: 2px solid #ff0055;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>SONU NEON TV PRO</h2>
+    <div id="status">READY</div>
+
+    <div class="shaka-video-container" id="videoContainer" data-shaka-player-container>
+        <video id="video" autoplay playsinline data-shaka-player></video>
+        <div class="manual-play-button" id="manualBtn">▶ CLICK TO PLAY</div>
+    </div>
+
+    <div class="controls">
+        <div class="category-wrapper" id="catWrapper">
+            <button class="cat-btn active" onclick="filterCat('all', this)">ALL</button>
+            <button class="cat-btn" onclick="filterCat('sports', this)">SPORTS</button>
+            <button class="cat-btn" onclick="filterCat('news', this)">NEWS</button>
+        </div>
+        <input type="text" id="searchBar" placeholder="Search..." onkeyup="doSearch()">
+    </div>
+
+    <div class="channel-list" id="channelList"></div>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const container = document.getElementById('videoContainer');
+    const status = document.getElementById('status');
+    const manualBtn = document.getElementById('manualBtn');
+    
+    let player = null;
+    let ui = null;
+    let currentCategory = 'all';
+    let currentChannel = null;
+
+    const PROXY = "https://testtvjio.sonuujamuicamp.workers.dev/?url="; 
+
+    const channels = [
+        { 
+            name: 'JIO TV HINDI', 
+            src: 'https://jiotvpllive.cdn.jio.com/bpk-tv/Star_Sports_1_Hindi_BTS/output/index.mpd', // Asli link yahan dalein
+            key: '8ea9b607549252068e260a5f4d7dd321:350c0aaffedf51cc1502e9543c7c885e', 
+            cookie: '__hdnea__=st=1773887993~exp=1773909593~acl=/*~hmac=b7397b7521203b5fe05c96bcd0731be1d6b3e0ffb4c6433535d3e623b707d752', // Cookie yahan dalein[span_5](end_span)
+            logo: 'https://iili.io/1Nz0AP.png', 
+            cat: 'sports'  
+        },
+        { name: 'AND TV SD', src: 'https://d1g8wgjurz8via.cloudfront.net/bpk-tv/Andtv/default/manifest.mpd', key: '26df86eeebb04d7fbc45c948f76e81fd:5f3a23f1a73c4c96ababce5fffe7b06b', logo: 'https://imagesdishtvd2h.whatsonindia.com/dasimages/channel/landscape/360x270/T1CCvaAQ.png', cat: 'movies' }
+  
+    ];
+
+    
+    async function initApp() {
+    shaka.polyfill.installAll();
+    player = new shaka.Player(video);
+    ui = new shaka.ui.Overlay(player, container, video);
+    
+    // Shaka Player error handling
+    player.addEventListener('error', (event) => console.error('Error code', event.detail.code, event.detail));
+
+    render(channels);
+    if(channels.length > 0) playChannel(channels[0]);
+}
+
+async function playChannel(ch) {
+    status.innerText = "LOADING: " + ch.name;
+    currentChannel = ch;
+
+    // DRM Setup
+    if (ch.key) {
+        const [kid, key] = ch.key.split(':');
+        player.configure({
+            drm: {
+                clearKeys: { [kid.trim()]: key.trim() }
+            }
+        });
+    }
+
+    try {
+        // Worker ke through URL pass karein
+        const finalUrl = PROXY + encodeURIComponent(ch.src);
+        await player.load(finalUrl);
+        status.innerText = "ONLINE: " + ch.name;
+    } catch (e) {
+        status.innerText = "ERROR: " + e.code;
+        console.error("Load failed", e);
+    }
+}
+
+
+    function render(data) {
+        const list = document.getElementById('channelList');
+        list.innerHTML = '';
+        data.forEach(ch => {
+            const card = document.createElement('div');
+            card.className = 'channel-card';
+            card.innerHTML = `<img src="${ch.logo}"><span>${ch.name}</span>`;
+            card.onclick = () => {
+                document.querySelectorAll('.channel-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                playChannel(ch);
+            };
+            list.appendChild(card);
+        });
+    }
+
+    function filterCat(cat, btn) {
+        currentCategory = cat;
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        doSearch();
+    }
+
+    function doSearch() {
+        const q = document.getElementById('searchBar').value.toLowerCase();
+        let f = channels;
+        if (currentCategory !== 'all') f = f.filter(c => c.cat === currentCategory);
+        f = f.filter(c => c.name.toLowerCase().includes(q));
+        render(f);
+    }
+
+    manualBtn.onclick = () => { video.play(); manualBtn.style.display = 'none'; };
+    document.addEventListener('shaka-ui-loaded', initApp);
+</script>
+</body>
+</html>
