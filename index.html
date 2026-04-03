@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <title> CRICKET NEWS POINT | WATCH FREE HD CRICKET, FOOTBALL & SPORTS ONLINE | 24/7 HLS STREAMING </title>
+    <meta name="description" content="WATCH ALL LIVE STREAMS, INCLUDING HD CRICKET, FOOTBALL, AND KABADDI, ON OUR CUSTOM HLS PLAYER. FREE, SMOOTH, AND SECURE LIVE SPORTS STREAMING .CRICKET NEWS POINT  OFFICIAL WEBSITE LIVE  | WATCH FREE HD CRICKET, FOOTBALL & SPORTS ONLINE | 24/7 HLS STREAMING">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4.3.4/dist/controls.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+:root {
+    --bg-color: #121212;
+    --primary-blue: #00b4d8;
+    --primary-blue-dark: #0077b6;
+    --card-bg: #1e1e1e;
+    --text-light: #f1f5f9;
+    --text-muted: #94a3b8;
+    --border-color: #2d2d2d;
+    --popup-bg: #282828;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-light);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 1rem;
+}
+
+/* --- POPUP BACKDROP (PITCH BLACK) --- */
+.popup-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000000; /* Pure Black */
+    z-index: 9998;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.popup-backdrop.show {
+    display: block;
+    opacity: 1;
+}
+
+.container {
+    width: 100%;
+    max-width: 800px;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeIn 0.5s ease-out forwards;
+    z-index: 1;
+}
+@keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+
+.stream-header {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.stream-header h1 { font-size: 1.25rem; font-weight: 600; }
+.live-badge {
+    background-color: var(--primary-blue);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 180, 216, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 180, 216, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 180, 216, 0); }
+}
+
+#player-container {
+    width: 100%;
+    height: 50vh;
+    max-height: 600px;
+    background-color: #000;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* --- ROTATION FALLBACK CSS --- */
+.rotate-fallback-notice{
+    position:absolute;
+    left:12px;
+    bottom:12px;
+    z-index:22000;
+    background:rgba(0,0,0,0.55);
+    color:var(--text-light);
+    padding:.4rem .6rem;
+    border-radius:8px;
+    font-size:.8rem;
+    display:none;
+}
+.player-rotated{
+    transform-origin: center center;
+    width:100vh;
+    height:100vw;
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%) rotate(90deg);
+    z-index:21000;
+    border-radius:0;
+}
+
+/* --- UPDATED VIEW COUNTER (TEXT ONLY, NO BOX) --- */
+.view-counter {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    background: none; /* No Background */
+    border: none;     /* No Border */
+    padding: 0;
+    z-index: 9999;
+    text-align: right;
+    pointer-events: none;
+}
+.view-counter .name {
+    font-size: 10px;
+    color: #fff;
+    opacity: 0.8;
+    margin-bottom: 2px;
+    text-shadow: 1px 1px 2px #000;
+}
+.view-counter .views {
+    font-size: 14px;
+    font-weight: 800;
+    /* Color handled by JS */
+    text-shadow: 0 0 4px #000, 1px 1px 2px black; /* Shadow for visibility */
+}
+
+.info-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-top: 1rem;
+    text-align: center;
+}
+.info-card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+}
+.action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--primary-blue), var(--primary-blue-dark));
+    color: white;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.action-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 180, 216, 0.4);
+}
+.action-button.copied { background: linear-gradient(90deg, #22c55e, #4ade80); }
+.back-link {
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+    margin-top: 1.5rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+.back-link:hover { background-color: var(--card-bg); color: var(--text-light); }
+
+/* --- POPUP STYLES --- */
+.telegram-popup {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(145deg, #181818, #1f1f1f);
+    color: var(--text-light);
+    padding: 40px 25px;
+    border-radius: 16px;
+    box-shadow: 0 0 50px 10px rgba(0, 180, 216, 0.5), 0 0 20px rgba(0, 180, 216, 0.3) inset;
+    z-index: 10000;
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+    display: none;
+    border: 2px solid var(--primary-blue);
+    animation: popIn 0.4s ease-out forwards;
+}
+
+.telegram-popup h2 {
+    margin-top: 0;
+    color: var(--primary-blue);
+    font-size: 1.75rem;
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(0, 180, 216, 0.5);
+    margin-bottom: 0.75rem;
+}
+.telegram-popup p {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-bottom: 1.75rem;
+    line-height: 1.5;
+}
+.telegram-popup button {
+    width: 100%;
+    padding: 14px;
+    margin-top: 12px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+.telegram-popup button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+.telegram-popup .join-btn {
+    background: linear-gradient(90deg, var(--primary-blue), var(--primary-blue-dark));
+    color: white;
+    box-shadow: 0 0 12px rgba(0, 180, 216, 0.4);
+}
+.telegram-popup .join-btn:hover {
+    box-shadow: 0 0 25px rgba(0, 180, 216, 0.7);
+}
+.telegram-popup .joined-btn {
+    background-color: var(--border-color);
+    color: var(--text-light);
+    border: 1px solid var(--primary-blue-dark);
+}
+
+@media (max-width: 480px) {
+    .telegram-popup { padding: 30px 20px; max-width: 90%; }
+    .telegram-popup h2 { font-size: 1.5rem; }
+}
+
+/* --- NEW ERROR MESSAGE STYLES --- */
+.error-container {
+    width: 100%;
+    max-width: 700px;
+    min-height: 65vh;
+    text-align: center;
+    background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+    border: 1px solid #2d2d2d;
+    border-radius: 24px;
+    padding: 4rem 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.9);
+    margin: 0 auto; /* Centering fix within container */
+}
+
+.error-container::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none;
+}
+
+.error-icon-wrapper {
+    position: relative;
+    margin-bottom: 2.5rem;
+}
+
+.error-icon {
+    font-size: 5rem;
+    color: #ffffff;
+    animation: float 3s ease-in-out infinite;
+}
+
+.error-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 140px;
+    height: 140px;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    animation: ripple 2.5s linear infinite;
+}
+
+.error-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #ffffff;
+    letter-spacing: 6px;
+    margin-bottom: 1.2rem;
+    text-shadow: 0 0 15px rgba(255,255,255,0.2);
+}
+
+.error-desc {
+    color: #94a3b8;
+    font-size: 1.05rem;
+    max-width: 450px;
+    margin: 0 auto 3rem;
+    line-height: 1.6;
+}
+
+.btn-premium-bw {
+    background: #ffffff;
+    color: #000000;
+    padding: 16px 45px;
+    border-radius: 50px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 1.5px;
+    text-decoration: none;
+    border: 2px solid #ffffff;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(255,255,255,0.15);
+}
+
+.btn-premium-bw:hover {
+    background: transparent;
+    color: #ffffff;
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(255,255,255,0.25);
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+}
+
+@keyframes ripple {
+    0% { width: 0; height: 0; opacity: 0.6; }
+    100% { width: 220px; height: 220px; opacity: 0; }
+}
+
+@media (max-width: 480px) {
+    .error-title { font-size: 1.8rem; letter-spacing: 3px; }
+    .error-icon { font-size: 4rem; }
+    .error-desc { font-size: 0.9rem; }
+}
+</style>
+</head>
+<body>
+
+    <div class="error-container">
+        <div class="error-icon-wrapper">
+            <div class="error-ring"></div>
+            <i class="fa-solid fa-tower-broadcast error-icon"></i>
+        </div>
+
+        <h1 class="error-title">Signal Lost</h1>
+
+        <p class="error-desc">
+            We Couldn't Connect To The Requested Broadcast. The ID Might Be Invalid,
+            Expired, Or The Broadcast Has Ended.
+        </p>
+
+        <a href="https://t.me/Sayan_xyz" target="_blank" class="btn-premium-bw">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 1C6.486 1 2 5.486 2 11v5a3 3 0 003 3h1v-7H5v-1c0-3.86 3.141-7 7-7s7 3.14 7 7v1h-1v7h1a3 3 0 003-3v-5c0-5.514-4.486-10-10-10z"/>
+            </svg>
+            Support
+        </a>
+    </div>
+
+</body>
+</html>
+
