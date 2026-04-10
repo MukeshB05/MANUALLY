@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script src="https://ssl.p.jwpcdn.com/player/v/8.32.1/jwplayer.js" type="text/javascript"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: black;
+        }
+
+        #player-container {
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 16 / 9;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+
+    
+
+    <!-- ==== PLAYER ==== -->
+    <div id="player-container"></div>
+
+    
+
+    <script>
+        // Defaults: primary = your mpd proxy, secondary = fallback
+        const DEFAULT_PRIMARY = "https://astr-seven.vercel.app/2504/default_primary.mpd";
+        const DEFAULT_SECONDARY = "https://allinonereborn.online/mpd/ygx.php/2504/default_primary.mpd";
+
+        // Read ?stream= (primary) and ?fallback= (secondary) from URL if provided
+        const urlParams = new URLSearchParams(window.location.search);
+        let primaryUrl = urlParams.get("stream") || DEFAULT_PRIMARY;
+        let secondaryUrl = urlParams.get("fallback") || DEFAULT_SECONDARY;
+
+        // jwplayer license/key
+        jwplayer.key = 'XSuP4qMl+9tK17QNb+4+th2Pm9AWgMO/cYH8CI0HGGr7bdjo';
+
+        // state flags so we don't loop switching sources
+        let playerInitialized = false;
+        let usedFallback = false;
+
+        // Utility: fetch with timeout (returns true if fetch succeeded with ok status)
+        function fetchWithTimeout(url, timeoutMs = 3500) {
+            return new Promise((resolve) => {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => {
+                    controller.abort();
+                    resolve({ ok: false, reason: 'timeout' });
+                }, timeoutMs);
+
+                fetch(url, { method: 'GET', signal: controller.signal, mode: 'cors' })
+                    .then(resp => {
+                        clearTimeout(timeout);
+                        // consider success when response.ok (200-299)
+                        if (resp.ok) resolve({ ok: true, resp });
+                        else resolve({ ok: false, reason: 'http:' + resp.status });
+                    })
+                    .catch(err => {
+                        clearTimeout(timeout);
+                        resolve({ ok: false, reason: err && err.name ? err.name : 'fetch_error' });
+                    });
+            });
+        }
+
+        // Setup jwplayer with a source and attach error handler to swap to fallback if needed
+        function setupPlayer(mpdUrl) {
+            if (playerInitialized) return;
+            playerInitialized = true;
+
+            jwplayer("player-container").setup({
+                file: mpdUrl,
+                aspectratio: '16:9',
+                width: '100%',
+                autostart: true,
+                image: 'https://mma.prnewswire.com/media/1919551/WillowTV_Logo.jpg?p=facebook',
+                mute: false,
+                preload: 'auto',
+                captions: { color: 'white', fontSize: '16px', backgroundOpacity: 0 },
+                sharing: {
+                    sites: ['facebook', 'twitter']
+                },
+                drm: {
+                    "clearkey": {
+                        "keyId": "03c2e0af2f8159f9f0ce9b5dbc865f10",
+                        "key": "cd84ed136b0cc71f8ab8cd4d4f6a2e4c"
+                    }
+                }
+            });
+
+            // If jwplayer emits an error, attempt fallback once
+            jwplayer().on('error', function (err) {
+                console.warn('jwplayer error:', err);
+                if (!usedFallback && secondaryUrl && secondaryUrl !== mpdUrl) {
+                    usedFallback = true;
+                    console.warn('Switching to fallback MPD:', secondaryUrl);
+                    try {
+                        jwplayer().load([{ file: secondaryUrl }]);
+                        jwplayer().play(true);
+                    } catch (e) {
+                        console.error('Failed to load fallback via jwplayer API', e);
+                    }
+                }
+            });
+        }
+
+        // Try fetching primary quickly; if success use it, else use secondary.
+        (async function chooseAndStart() {
+            // First try a quick fetch of the primary MPD
+            let result = await fetchWithTimeout(primaryUrl, 3500);
+
+            if (result.ok) {
+                // primary reachable — use it
+                console.log('Primary MPD reachable:', primaryUrl);
+                setupPlayer(primaryUrl);
+            } else {
+                // Primary not reachable (timeout/CORS/error). We will try fallback.
+                console.warn('Primary MPD failed check:', primaryUrl, 'reason:', result.reason);
+                if (secondaryUrl && secondaryUrl !== primaryUrl) {
+                    console.log('Using secondary MPD:', secondaryUrl);
+                    usedFallback = true;
+                    setupPlayer(secondaryUrl);
+                } else {
+                    // If no secondary provided, still try primary in player (jwplayer may succeed despite fetch failure)
+                    console.log('No valid secondary provided — still attempting primary in player.');
+                    setupPlayer(primaryUrl);
+                }
+            }
+
+            // Extra: if we used primary after fetch-check, still keep jwplayer error handler to switch to secondary if player fails later.
+        })();
+    </script>
+</body>
+</html>
